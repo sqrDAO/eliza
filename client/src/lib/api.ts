@@ -1,6 +1,6 @@
 import { type UUID, type Character } from "@elizaos/core";
 
-const BASE_URL = `${import.meta.env.AGENT_BASE_URL}`;
+const BASE_URL = "https://gmx-be.sqrfund.ai";
 
 const fetcher = async ({
     url,

@@ -1,18 +1,23 @@
 import type { IAgentRuntime, Memory, State } from "@elizaos/core";
 import { composeContext, elizaLogger, generateObject, ModelClass } from "@elizaos/core";
 
-export const GMX_SUPPORTED_TOKENS = ["ETH", "USDC", "WBTC"];
+import { SwapOrder, swapOrderSchema } from "../types";
+import { Action } from "@elizaos/core";
 
-export const swapAction = {
+export const GMX_SUPPORTED_TOKENS = ["ETH", "USDC", "BTC"];
+
+export const swapAction: Action = {
     name: "SWAP_MARKET_GMX",
     similes: ["TOKEN_SWAP_GMX", "EXCHANGE_TOKENS_GMX", "SELL_TOKENS_GMX"],
     description: "Swap tokens on GMX using market orders",
+    suppressInitialMessage: true,
+
     handler: async (
         runtime: IAgentRuntime,
         _message: Memory,
         state: State,
         _options: any,
-        _callback?: any
+        callback?: any
     ) => {
         // 1. Extract the swap parameters from the conversation
         const extractTemplate = `
@@ -46,14 +51,49 @@ Output in JSON format wrapped in triple backticks:
             template: extractTemplate,
         });
 
-        const extractContent = await generateObject({
+        const extractResponse = await generateObject({
             runtime,
             context: extractContext,
-            modelClass: ModelClass.SMALL
-        })
+            modelClass: ModelClass.SMALL,
+            schema: swapOrderSchema,
+        });
+
+        if (extractResponse.finishReason !== "stop") {
+            await callback({
+                text: "Please provide the swap parameters.",
+            });
+            return;
+        }
+
+        const extractContent = extractResponse.object as SwapOrder;
 
         elizaLogger.info("Extracted swap parameters:", extractContent);
-        return;
+
+        if (!GMX_SUPPORTED_TOKENS.includes(extractContent.from)) {
+            if (callback) {
+                await callback({
+                    text: `Sorry, we do not support swapping from ${extractContent.from} at the moment.`,
+                })
+            }
+            return false;
+        }
+
+        if (!extractContent.confirm) {
+            if (callback) {
+                await callback({
+                    text: `Please confirm that you want to swap ${extractContent.amount} ${extractContent.from} for ${extractContent.to}.`,
+                })
+            }
+            return false;
+        }
+
+        // if GMX_PRIVATE_KEY is set, we will do the swap
+        // otherwise, we will generate the swap transaction and return it
+        if (callback) {
+            await callback({
+                text: `Swap ${extractContent.amount} ${extractContent.from} for ${extractContent.to} on GMX.`,
+            });
+        }
 
         // 2. Validate the swap parameters
 

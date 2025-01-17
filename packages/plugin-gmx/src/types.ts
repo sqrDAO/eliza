@@ -1,17 +1,10 @@
+import { z } from 'zod';
 
-export interface SwapParams {
-    chain: string;
-    fromToken: string;
-    toToken: string;
-    amount: string;
-    slippage?: number;
-}
+export const swapOrderSchema = z.object({
+    from: z.string(),
+    to: z.string(),
+    amount: z.string(),
+    confirm: z.boolean(),
+});
 
-export interface Transaction {
-    hash: string;
-    from: string;
-    to: string;
-    value: bigint;
-    data: string;
-    chainId: number;
-}
+export type SwapOrder = z.infer<typeof swapOrderSchema>;
